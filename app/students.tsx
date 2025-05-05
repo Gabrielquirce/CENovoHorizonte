@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system';
-import { printAsync } from 'expo-print';
+import * as Print from 'expo-print';
 import { router } from 'expo-router';
 import { shareAsync } from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
@@ -176,156 +176,335 @@ export default function StudentsScreen() {
 
   const exportToCSV = async (student: Student) => {
     try {
-      const flatData = {
-        'Nome': student.nome,
-        'Data Nascimento': student.dataNascimento,
-        'Naturalidade': student.naturalidade,
-        'Nacionalidade': student.nacionalidade,
-        'Sexo': student.sexo,
-        'CPF': student.cpf,
-        'RG': student.rg,
-        'Ano Letivo': student.anoLetivo,
-        'Termo': student.termo,
-        'Folha': student.folha,
-        'Livro': student.livro,
-        'Matrícula': student.matricula,
-        'Turno': student.turno,
-        'Tipo Sanguíneo': student.tipoSanguineo,
-        'Raça': student.raca,
-        'Nome da Mãe': student.mae.nomeMae,
-        'Nascimento Mãe': student.mae.nascimentoMae,
-        'Endereço Mãe': student.mae.enderecoMae,
-        'CEP Mãe': student.mae.cepMae,
-        'CPF Mãe': student.mae.cpfMae,
-        'RG Mãe': student.mae.rgMae,
-        'Profissão Mãe': student.mae.profissaoMae,
-        'Telefone Mãe': student.mae.telefoneMae,
-        'Email Mãe': student.mae.emailMae,
-        'Trabalho Mãe': student.mae.trabalhoMae,
-        'Telefone Trabalho Mãe': student.mae.telefoneTrabalhoMae,
-        'Nome do Pai': student.pai.nomePai,
-        'Nascimento Pai': student.pai.nascimentoPai,
-        'Endereço Pai': student.pai.enderecoPai,
-        'CEP Pai': student.pai.cepPai,
-        'CPF Pai': student.pai.cpfPai,
-        'RG Pai': student.pai.rgPai,
-        'Profissão Pai': student.pai.profissaoPai,
-        'Telefone Pai': student.pai.telefonePai,
-        'Email Pai': student.pai.emailPai,
-        'Trabalho Pai': student.pai.TrabalhoPai,
-        'Telefone Trabalho Pai': student.pai.telefoneTrabalhoPai,
-        'Tipo Matrícula': student.observacoes.matriculaTipo,
-        'Escola Anterior': student.observacoes.escola,
-        'Tem Irmãos': student.observacoes.temIrmaos,
-        'Nomes Irmãos': student.observacoes.irmaosNome,
-        'Acompanhamento Especialista': student.observacoes.temEspecialista,
-        'Especialista': student.observacoes.especialista,
-        'Alergias': student.observacoes.temAlergias,
-        'Tipo Alergia': student.observacoes.alergia,
-        'Uso Medicamento': student.observacoes.temMedicamento,
-        'Medicamento': student.observacoes.medicamento,
-        'Reside Com': student.observacoes.reside,
-        'Responsável Financeiro': student.observacoes.respNome,
-        'Contato Responsável': student.observacoes.respTelefone,
-        'Pessoas Autorizadas': student.observacoes.pessoasAutorizadas
+      // 1. Sanitização correta do nome do arquivo (mantém acentos)
+      const sanitizeFileName = (name: string) => {
+        return name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+          .replace(/[^a-zA-Z0-9_]/g, '_')  // Substitui caracteres especiais
+          .replace(/_+/g, '_')             // Remove underscores duplicados
+          .substring(0, 50);               // Limita tamanho do nome
       };
-
-      const csvHeaders = Object.keys(flatData).join(';');
-      const csvValues = Object.values(flatData).join(';');
-      const csvContent = `${csvHeaders}\n${csvValues}`;
-
-      const fileUri = FileSystem.documentDirectory + `${student.nome}_dados.csv`;
+  
+      const fileName = `${sanitizeFileName(student.nome)}_dados.csv`;
+      const fileUri = FileSystem.documentDirectory + fileName;
+  
+      // 2. Função de formatação de valores
+      const formatValue = (value: string | undefined) => {
+        if (!value) return '""'; // Campos vazios como string vazia entre aspas
+        return `"${value.replace(/"/g, '""')}"`; // Escapa aspas duplas
+      };
+  
+      // 3. Criação do conteúdo CSV
+      const csvRows = [
+        ['Campo', 'Valor'], // Cabeçalho
+        ['Nome do Aluno', formatValue(student.nome)],
+        ['Data de Nascimento', formatValue(student.dataNascimento)],
+        ['Naturalidade', formatValue(student.naturalidade)],
+        ['Nacionalidade', formatValue(student.nacionalidade)],
+        ['Sexo', formatValue(student.sexo)],
+        ['CPF', formatValue(student.cpf)],
+        ['RG', formatValue(student.rg)],
+        ['Ano Letivo', formatValue(student.anoLetivo)],
+        ['Termo', formatValue(student.termo)],
+        ['Folha', formatValue(student.folha)],
+        ['Livro', formatValue(student.livro)],
+        ['Matrícula', formatValue(student.matricula)],
+        ['Turno', formatValue(student.turno)],
+        ['Tipo Sanguíneo', formatValue(student.tipoSanguineo)],
+        ['Raça/Cor', formatValue(student.raca)],
+        
+        // Dados da Mãe
+        ['Nome da Mãe', formatValue(student.mae.nomeMae)],
+        ['Nascimento da Mãe', formatValue(student.mae.nascimentoMae)],
+        ['Endereço da Mãe', formatValue(student.mae.enderecoMae)],
+        ['CEP da Mãe', formatValue(student.mae.cepMae)],
+        ['CPF da Mãe', formatValue(student.mae.cpfMae)],
+        ['RG da Mãe', formatValue(student.mae.rgMae)],
+        ['Profissão da Mãe', formatValue(student.mae.profissaoMae)],
+        ['Telefone da Mãe', formatValue(student.mae.telefoneMae)],
+        ['Email da Mãe', formatValue(student.mae.emailMae)],
+        ['Trabalho da Mãe', formatValue(student.mae.trabalhoMae)],
+        ['Telefone do Trabalho da Mãe', formatValue(student.mae.telefoneTrabalhoMae)],
+        
+        // Dados do Pai
+        ['Nome do Pai', formatValue(student.pai.nomePai)],
+        ['Nascimento do Pai', formatValue(student.pai.nascimentoPai)],
+        ['Endereço do Pai', formatValue(student.pai.enderecoPai)],
+        ['CEP do Pai', formatValue(student.pai.cepPai)],
+        ['CPF do Pai', formatValue(student.pai.cpfPai)],
+        ['RG do Pai', formatValue(student.pai.rgPai)],
+        ['Profissão do Pai', formatValue(student.pai.profissaoPai)],
+        ['Telefone do Pai', formatValue(student.pai.telefonePai)],
+        ['Email do Pai', formatValue(student.pai.emailPai)],
+        ['Trabalho do Pai', formatValue(student.pai.TrabalhoPai)],
+        ['Telefone do Trabalho do Pai', formatValue(student.pai.telefoneTrabalhoPai)],
+        
+        // Observações
+        ['Tipo de Matrícula', formatValue(student.observacoes.matriculaTipo)],
+        ['Escola Anterior', formatValue(student.observacoes.escola)],
+        ['Possui Irmãos', formatValue(student.observacoes.temIrmaos)],
+        ['Nomes dos Irmãos', formatValue(student.observacoes.irmaosNome)],
+        ['Acompanhamento Especialista', formatValue(student.observacoes.temEspecialista)],
+        ['Especialista', formatValue(student.observacoes.especialista)],
+        ['Possui Alergias', formatValue(student.observacoes.temAlergias)],
+        ['Tipo de Alergia', formatValue(student.observacoes.alergia)],
+        ['Usa Medicamento', formatValue(student.observacoes.temMedicamento)],
+        ['Medicamento', formatValue(student.observacoes.medicamento)],
+        ['Reside Com', formatValue(student.observacoes.reside)],
+        ['Responsável Financeiro', formatValue(student.observacoes.respNome)],
+        ['Contato do Responsável', formatValue(student.observacoes.respTelefone)],
+        ['Pessoas Autorizadas', formatValue(student.observacoes.pessoasAutorizadas)],
+      ];
+  
+      // 4. Converter para CSV com BOM
+      const csvContent = `\ufeff${csvRows.map(row => row.join(';')).join('\n')}`;
+  
+      // 5. Escrever arquivo
       await FileSystem.writeAsStringAsync(fileUri, csvContent, {
         encoding: FileSystem.EncodingType.UTF8,
       });
-      await shareAsync(fileUri);
+  
+      // 6. Compartilhar
+      await shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Exportar Dados do Aluno',
+        UTI: 'public.comma-separated-values-text'
+      });
+  
     } catch (error) {
-      console.error('Erro ao exportar CSV:', error);
+      console.error('Erro na exportação:', error);
+      alert('Erro ao exportar CSV!\nVerifique o console para detalhes.');
     }
   };
 
   const exportToPDF = async (student: Student) => {
     try {
       const html = `
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial; padding: 20px; }
-              h1 { color: #902121; border-bottom: 2px solid #8B0000; }
-              h2 { color: #8B0000; margin-top: 25px; }
-              .section { margin-bottom: 20px; }
-              .row { display: flex; justify-content: space-between; margin: 5px 0; }
-              .label { font-weight: bold; width: 40%; }
-              .value { width: 55%; }
-            </style>
-          </head>
-          <body>
-            <h1>Ficha Completa do Aluno</h1>
-            
-            <div class="section">
-              <h2>Dados Pessoais</h2>
-              ${Object.entries({
-                'Nome': student.nome,
-                'Data Nascimento': student.dataNascimento,
-                'Naturalidade': student.naturalidade,
-                'Nacionalidade': student.nacionalidade,
-                'Sexo': student.sexo,
-                'CPF': student.cpf,
-                'RG': student.rg,
-                'Ano Letivo': student.anoLetivo,
-                'Termo': student.termo,
-                'Folha': student.folha,
-                'Livro': student.livro,
-                'Matrícula': student.matricula,
-                'Turno': student.turno,
-                'Tipo Sanguíneo': student.tipoSanguineo,
-                'Raça': student.raca
-              }).map(([label, value]) => `
-                <div class="row">
-                  <span class="label">${label}:</span>
-                  <span class="value">${value}</span>
-                </div>
-              `).join('')}
+      <html>
+        <head>
+          <style>
+              /* Estilos globais */
+              body { 
+                font-family: Arial; 
+                margin: 0;
+                padding: 0;
+              }
+  
+              /* Margens da página */
+              @page {
+                size: A4;
+                margin: 50px 30px;
+              }
+  
+              /* Quebra de página */
+              .page-break {
+                page-break-before: always;
+                padding-top: 50px; /* Margem superior da segunda página */
+              }
+  
+              /* Estilos do conteúdo */
+              .header {
+                text-align: center;
+                margin-bottom: 30px;
+              }
+  
+              .section {
+                margin-bottom: 25px;
+              }
+  
+              .section-title {
+                color: #8B0000;
+                border-bottom: 2px solid #8B0000;
+                padding-bottom: 5px;
+                margin-bottom: 15px;
+              }
+  
+              .row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+              }
+  
+              .label {
+                font-weight: bold;
+                width: 45%;
+              }
+  
+              .value {
+                width: 50%;
+              }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            td {
+              padding: 8px;
+              border: 1px solid #ddd;
+            }
+          </style>
+        </head>
+        <body>
+    
+          <!-- Página 1 -->
+          <div class="page">
+            <div class="header">
+              <h1>Ficha do Aluno - ${student.nome}</h1>
             </div>
-
+    
+            <!-- Dados Pessoais COMPLETOS -->
             <div class="section">
-              <h2>Dados da Mãe</h2>
-              ${Object.entries(student.mae).map(([key, value]) => `
-                <div class="row">
-                  <span class="label">${key.replace('Mae', '').trim()}:</span>
-                  <span class="value">${value}</span>
-                </div>
-              `).join('')}
+              <h2 class="section-title">Dados Pessoais</h2>
+              ${renderSection(student, [
+                'nome', 'dataNascimento', 'naturalidade', 'nacionalidade',
+                'sexo', 'cpf', 'rg', 'anoLetivo', 'termo', 'folha',
+                'livro', 'matricula', 'turno', 'tipoSanguineo', 'raca'
+              ])}
             </div>
-
+    
+            <!-- Dados da Mãe COMPLETOS -->
             <div class="section">
-              <h2>Dados do Pai</h2>
-              ${Object.entries(student.pai).map(([key, value]) => `
-                <div class="row">
-                  <span class="label">${key.replace('Pai', '').trim()}:</span>
-                  <span class="value">${value}</span>
-                </div>
-              `).join('')}
+              <h2 class="section-title">Dados da Mãe</h2>
+              ${renderSection(student.mae, [
+                'nomeMae', 'nascimentoMae', 'enderecoMae', 'cepMae',
+                'cpfMae', 'rgMae', 'profissaoMae', 'telefoneMae',
+                'emailMae', 'trabalhoMae', 'telefoneTrabalhoMae'
+              ])}
             </div>
-
+          </div>
+    
+          <!-- Página 2 -->
+          <div class="page-break">
+            <!-- Dados do Pai COMPLETOS -->
             <div class="section">
-              <h2>Observações</h2>
-              ${Object.entries(student.observacoes).map(([key, value]) => `
-                <div class="row">
-                  <span class="label">${key.replace('tem', '').trim()}:</span>
-                  <span class="value">${value}</span>
-                </div>
-              `).join('')}
+              <h2 class="section-title">Dados do Pai</h2>
+              ${renderSection(student.pai, [
+                'nomePai', 'nascimentoPai', 'enderecoPai', 'cepPai',
+                'cpfPai', 'rgPai', 'profissaoPai', 'telefonePai',
+                'emailPai', 'TrabalhoPai', 'telefoneTrabalhoPai'
+              ])}
             </div>
-          </body>
-        </html>
-      `;
-
-      const { uri } = await printAsync({ html });
-      await shareAsync(uri, { mimeType: 'application/pdf' });
+    
+            <!-- Observações COMPLETAS -->
+            <div class="section">
+              <h2 class="section-title">Observações</h2>
+              <table>
+                ${renderSection(student.observacoes, [
+                  'matriculaTipo', 'escola', 'temIrmaos', 'irmaosNome',
+                  'temEspecialista', 'especialista', 'temAlergias', 'alergia',
+                  'temMedicamento', 'medicamento', 'reside', 'respNome',
+                  'respTelefone', 'pessoasAutorizadas'
+                ], true)}
+              </table>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  
+      const { uri } = await Print.printToFileAsync({
+        html,
+        width: 595,   // A4 width (210mm)
+        height: 842,   // A4 height (297mm)
+      });
+  
+      await shareAsync(uri);
     } catch (error) {
-      console.error('Erro ao exportar PDF:', error);
+      console.error('Erro ao gerar PDF:', error);
     }
+  };
+  
+  // Função auxiliar para renderizar seções
+  const renderSection = (data: any, fields: string[], useTable: boolean = false) => {
+    return fields.map(field => {
+      const label = formatLabel(field);
+      const value = data[field] || 'Não informado';
+      
+      return useTable ? `
+        <tr>
+          <td><strong>${label}:</strong></td>
+          <td>${value}</td>
+        </tr>
+      ` : `
+        <div class="row">
+          <span class="label">${label}:</span>
+          <span class="value">${value}</span>
+        </div>
+      `;
+    }).join('');
+  };
+
+  const formatLabel = (key: string): string => {
+    const labels: { [key: string]: string } = {
+      // Dados Pessoais
+      id: 'ID',
+      nome: 'Nome',
+      dataNascimento: 'Data de Nascimento',
+      naturalidade: 'Naturalidade',
+      nacionalidade: 'Nacionalidade',
+      sexo: 'Sexo',
+      cpf: 'CPF',
+      rg: 'RG',
+      anoLetivo: 'Ano Letivo',
+      termo: 'Termo',
+      folha: 'Folha',
+      livro: 'Livro',
+      matricula: 'Matrícula',
+      turno: 'Turno',
+      tipoSanguineo: 'Tipo Sanguíneo',
+      raca: 'Raça/Cor',
+  
+      // Dados da Mãe
+      nomeMae: 'Nome',
+      nascimentoMae: 'Data de Nascimento',
+      enderecoMae: 'Endereço',
+      cepMae: 'CEP',
+      cpfMae: 'CPF',
+      rgMae: 'RG',
+      profissaoMae: 'Profissão',
+      telefoneMae: 'Telefone',
+      emailMae: 'E-mail',
+      trabalhoMae: 'Local de Trabalho',
+      telefoneTrabalhoMae: 'Telefone do Trabalho',
+  
+      // Dados do Pai
+      nomePai: 'Nome',
+      nascimentoPai: 'Data de Nascimento',
+      enderecoPai: 'Endereço',
+      cepPai: 'CEP',
+      cpfPai: 'CPF',
+      rgPai: 'RG',
+      profissaoPai: 'Profissão',
+      telefonePai: 'Telefone',
+      emailPai: 'E-mail',
+      TrabalhoPai: 'Local de Trabalho',
+      telefoneTrabalhoPai: 'Telefone do Trabalho',
+  
+      // Observações
+      matriculaTipo: 'Tipo de Matrícula',
+      escola: 'Escola Anterior',
+      temIrmaos: 'Possui Irmãos',
+      irmaosNome: 'Nomes dos Irmãos',
+      temEspecialista: 'Acompanhamento Especialista',
+      especialista: 'Especialista',
+      temAlergias: 'Possui Alergias',
+      alergia: 'Tipo de Alergia',
+      temMedicamento: 'Usa Medicamento',
+      medicamento: 'Medicamento Utilizado',
+      reside: 'Reside Com',
+      respNome: 'Responsável Financeiro',
+      respTelefone: 'Contato do Responsável',
+      pessoasAutorizadas: 'Pessoas Autorizadas'
+    };
+  
+    // Fallback para campos não mapeados - formata camelCase
+    return labels[key] || key
+      .replace(/([A-Z])/g, ' $1') // Quebra camelCase
+      .replace(/(Mae|Pai)$/gi, '') // Remove sufixos Mae/Pai
+      .trim()
+      .replace(/^./, (str) => str.toUpperCase()) // Capitaliza primeira letra
+      .replace(/(Cpf|Cep)/gi, (match) => match.toUpperCase()); // Siglas em maiúsculo
   };
 
   const renderDetailModal = () => (
