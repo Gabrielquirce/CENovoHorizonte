@@ -6,7 +6,7 @@ export default function AboutDevs() {
   const developers = [
     {
       name: 'Beatriz Hyath Carvalho',
-      github: 'https://github.com/beatrizhyath',
+      github: 'https://github.com/BeaHC',
       linkedin: 'https://www.linkedin.com/in/beatriz-hyath-3205aa295/'
     },
     {
